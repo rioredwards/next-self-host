@@ -11,6 +11,7 @@ This repo shows how to deploy a Next.js app and a PostgreSQL database on a Ubunt
 1. Purchase a domain name
 2. Purchase a Linux Ubuntu server (e.g. [droplet](https://www.digitalocean.com/products/droplets))
 3. Create an `A` DNS record pointing to your server IPv4 address
+4. Install [Bun](https://bun.sh) locally for development (used as the package manager in this repo)
 
 ## Quickstart
 
@@ -93,6 +94,18 @@ docker-compose up -d
 ```
 
 This will start both services and make your Next.js app available at `http://localhost:3000` with the PostgreSQL database running in the background. We also create a network so that our two containers can communicate with each other.
+
+For local development without Docker, you can use Bun directly:
+
+```bash
+cd /Users/rioredwards/Coding/next-self-host
+
+# Install dependencies (updates bun.lockb)
+bun install
+
+# Run the Next.js dev server
+bun run dev
+```
 
 An additional FastAPI-based service, `ai-img-validator`, is included under `nsfw-filter/backend` and wired into `docker-compose.yml`. It runs on the internal Docker network and is consumed via a Next.js server action used by the `ImgValidator` UI for NSFW + dog detection.
 
