@@ -1,17 +1,20 @@
-import { revalidatePath } from 'next/cache';
-import { FreshnessTimer } from './timer';
+import { revalidatePath } from "next/cache";
+import { getPokemonAction } from "../actions";
+import { FreshnessTimer } from "./timer";
+
+// ISR: Revalidate this page at most once every 10 seconds
+export const revalidate = 10;
 
 async function revalidateAction() {
-  'use server';
-  revalidatePath('/isr');
+  "use server";
+  revalidatePath("/isr");
 }
 
 async function getPokemon() {
+  // Generate random Pokemon ID from first generation (1-151)
   const randomId = Math.floor(Math.random() * 151) + 1;
-  const res = await fetch(`https://api.vercel.app/pokemon/${randomId}`, {
-    next: { revalidate: 10 },
-  });
-  return res.json();
+  // Use server action with ISR revalidation (10 seconds)
+  return await getPokemonAction(randomId, 10);
 }
 
 export default async function ISRDemo() {
@@ -23,7 +26,7 @@ export default async function ISRDemo() {
       <h1>ISR Demo</h1>
       <p>Pokemon ID: {pokemon.id}</p>
       <p>Name: {pokemon.name}</p>
-      <p>Types: {pokemon.type.join(', ')}</p>
+      <p>Types: {pokemon.type.join(", ")}</p>
       <FreshnessTimer generatedAt={generatedAt} />
       <form action={revalidateAction}>
         <button type="submit">Revalidate</button>

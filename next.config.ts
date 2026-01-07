@@ -1,10 +1,10 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 // import path from 'path';
 
 const nextConfig: NextConfig = {
   // Recommended: this will reduce output
   // Docker image size by 80%+
-  output: 'standalone',
+  output: "standalone",
   // Optional: bring your own cache handler
   // cacheHandler: path.resolve('./cache-handler.mjs'),
   // cacheMaxMemorySize: 0, // Disable default in-memory caching
@@ -17,11 +17,11 @@ const nextConfig: NextConfig = {
     // Sharp, which is built-into `next start`
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-        search: '',
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+        search: "",
       },
     ],
   },
@@ -32,6 +32,12 @@ const nextConfig: NextConfig = {
   // Optional: override the default (1 year) `stale-while-revalidate`
   // header time for static pages
   // swrDelta: 3600 // seconds
+  // Enable detailed logging for fetch requests in development
+  logging: {
+    fetches: {
+      fullUrl: true, // Log full URLs for fetch requests
+    },
+  },
 };
 
 export default nextConfig;
