@@ -11,7 +11,7 @@ services:
       - my_network
 
   ai-img-validator:
-    build: ./nsfw-filter/backend
+    build: ./ai-img-validator
     networks:
       - my_network
 
