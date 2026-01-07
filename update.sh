@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script Vars
-REPO_URL="https://github.com/rioedwards/next-self-host.git"
+REPO_URL="git@github.com:rioedwards/next-self-host.git"
 APP_DIR=~/myapp
 
 # Pull the latest changes from the Git repository
