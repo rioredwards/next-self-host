@@ -94,6 +94,8 @@ docker-compose up -d
 
 This will start both services and make your Next.js app available at `http://localhost:3000` with the PostgreSQL database running in the background. We also create a network so that our two containers can communicate with each other.
 
+An additional FastAPI-based service, `ai-img-validator`, is included under `nsfw-filter/backend` and wired into `docker-compose.yml`. It runs on the internal Docker network and is consumed via a Next.js server action used by the `ImgValidator` UI for NSFW + dog detection.
+
 If you want to view the contents of the local database, you can use Drizzle Studio:
 
 ```bash

@@ -10,6 +10,11 @@ services:
     networks:
       - my_network
 
+  ai-img-validator:
+    build: ./nsfw-filter/backend
+    networks:
+      - my_network
+
   db:
     image: postgres:latest
     environment:

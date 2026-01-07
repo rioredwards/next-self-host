@@ -2,14 +2,8 @@
 
 import Image from "next/image";
 import { useState } from "react";
-
-interface AnalysisResult {
-  filename: string;
-  nsfw_score: number;
-  is_nsfw: boolean;
-  dog_probability: number;
-  is_dog: boolean;
-}
+import { analyzeImageAction } from "../actions";
+import type { AnalysisResult } from "../lib/imgValidatorTypes";
 
 export default function ImgValidator() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,9 +11,6 @@ export default function ImgValidator() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Backend URL - adjust for your Raspberry Pi
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -48,17 +39,7 @@ export default function ImgValidator() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_URL}/analyze`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Analysis failed");
-      }
-
-      const data = await response.json();
+      const data = await analyzeImageAction(formData);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
