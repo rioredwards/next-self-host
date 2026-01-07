@@ -20,44 +20,78 @@ CLOUDFLARED_ARCH=$PI_ARCH
 # Update package list and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
 
-# Add Swap Space
-echo "Adding swap space..."
-sudo fallocate -l $SWAP_SIZE /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Make swap permanent
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# Install Docker
-
-sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=$DOCKER_ARCH] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" -y
-sudo apt update
-sudo apt install docker-ce -y
-
-# Install Docker Compose
-sudo rm -f /usr/local/bin/docker-compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-# Wait for the file to be fully downloaded before proceeding
-if [ ! -f /usr/local/bin/docker-compose ]; then
-	echo "Docker Compose download failed. Exiting."
-	exit 1
+# Add Swap Space (only if it doesn't already exist)
+if [ ! -f /swapfile ]; then
+	echo "Adding swap space..."
+	sudo fallocate -l $SWAP_SIZE /swapfile
+	sudo chmod 600 /swapfile
+	sudo mkswap /swapfile
+	sudo swapon /swapfile
+	# Make swap permanent
+	echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+else
+	echo "Swap file already exists, skipping..."
 fi
 
-sudo chmod +x /usr/local/bin/docker-compose
+# Install Docker (Debian/Raspberry Pi OS compatible method)
+if ! command -v docker &>/dev/null; then
+	echo "Installing Docker..."
+	# Install prerequisites
+	sudo apt install -y ca-certificates curl gnupg
 
-# Ensure Docker Compose is executable and in path
-sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+	# Detect OS (Debian or Ubuntu)
+	if [ -f /etc/debian_version ]; then
+		OS_ID="debian"
+		OS_CODENAME=$(lsb_release -cs)
+	else
+		OS_ID="ubuntu"
+		OS_CODENAME=$(lsb_release -cs)
+	fi
 
-# Verify Docker Compose installation
-docker-compose --version
-if [ $? -ne 0 ]; then
-	echo "Docker Compose installation failed. Exiting."
-	exit 1
+	# Add Docker's official GPG key (modern method, not apt-key)
+	sudo install -m 0755 -d /etc/apt/keyrings
+	curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+	sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+	# Add Docker repository
+	echo "deb [arch=$DOCKER_ARCH signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS_ID} ${OS_CODENAME} stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+
+	sudo apt update
+	sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+else
+	echo "Docker already installed."
+fi
+
+# Fix Docker IPv6 issue: configure Docker and system to use IPv4
+sudo mkdir -p /etc/docker
+echo '{"ipv6": false, "fixed-cidr-v6": "", "dns": ["8.8.8.8", "8.8.4.4"]}' | sudo tee /etc/docker/daemon.json >/dev/null
+
+# Configure system to prefer IPv4 for DNS lookups
+echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf >/dev/null 2>&1 || echo "precedence ::ffff:0:0/96  100" | sudo tee /etc/gai.conf >/dev/null
+
+# Update DNS to use Google DNS (returns IPv4 addresses)
+if [ -f /etc/resolv.conf ] && ! grep -q "8.8.8.8" /etc/resolv.conf; then
+	sudo sed -i '1inameserver 8.8.8.8' /etc/resolv.conf
+	sudo sed -i '1inameserver 8.8.4.4' /etc/resolv.conf
+fi
+
+# Install Docker Compose standalone (if plugin version is not available)
+if ! docker compose version &>/dev/null 2>&1; then
+	if ! command -v docker-compose &>/dev/null; then
+		echo "Installing Docker Compose standalone..."
+		sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+		sudo chmod +x /usr/local/bin/docker-compose
+
+		# Verify installation
+		if ! docker-compose --version &>/dev/null; then
+			echo "Docker Compose installation failed. Exiting."
+			exit 1
+		fi
+	else
+		echo "Docker Compose standalone already available."
+	fi
+else
+	echo "Docker Compose plugin already available."
 fi
 
 # Ensure Docker starts on boot and start Docker service
@@ -100,8 +134,8 @@ sudo rm -f /etc/nginx/sites-enabled/myapp
 
 # Create Nginx config with reverse proxy, rate limiting, and streaming support
 # Note: Nginx listens on HTTP only (port 80) - Cloudflare Tunnel handles SSL externally
-sudo cat >/etc/nginx/sites-available/myapp <<EOL
-limit_req_zone \$binary_remote_addr zone=mylimit:10m rate=10r/s;
+sudo tee /etc/nginx/sites-available/myapp >/dev/null <<'EOL'
+limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
 
 server {
     listen 80;
@@ -113,10 +147,10 @@ server {
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
 
         # Disable buffering for streaming support
         proxy_buffering off;
@@ -150,13 +184,35 @@ else
 	echo "Cloudflare Tunnel already installed."
 fi
 
+# Restart Docker to apply configuration
+if sudo systemctl is-active --quiet docker; then
+	sudo systemctl stop docker.socket 2>/dev/null
+	sudo systemctl stop docker 2>/dev/null
+	sleep 2
+	sudo systemctl start docker
+else
+	sudo systemctl start docker
+	sudo systemctl enable docker
+fi
+sleep 2
+
+# Determine which docker-compose command to use (plugin or standalone)
+if docker compose version &>/dev/null; then
+	DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &>/dev/null; then
+	DOCKER_COMPOSE_CMD="docker-compose"
+else
+	echo "Docker Compose not found. Exiting."
+	exit 1
+fi
+
 # Build and run the Docker containers from the app directory (~/myapp)
 cd $APP_DIR
-sudo docker-compose up --build -d
+sudo $DOCKER_COMPOSE_CMD up --build -d
 
 # Check if Docker Compose started correctly
-if ! sudo docker-compose ps | grep "Up"; then
-	echo "Docker containers failed to start. Check logs with 'docker-compose logs'."
+if ! sudo $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
+	echo "Docker containers failed to start. Check logs with '$DOCKER_COMPOSE_CMD logs'."
 	exit 1
 fi
 
