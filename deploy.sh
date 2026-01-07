@@ -10,7 +10,7 @@ NEXT_PUBLIC_SAFE_KEY="safe-key" # for the demo app
 # Configure your tunnel domain in Cloudflare dashboard after running this script
 
 # Script Vars
-REPO_URL="https://github.com/leerob/next-self-host.git"
+REPO_URL="https://github.com/rioedwards/next-self-host.git"
 APP_DIR=~/myapp
 SWAP_SIZE="1G"  # Swap size of 1GB
 PI_ARCH="arm64" # aarch64 (ARM64)

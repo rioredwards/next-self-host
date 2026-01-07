@@ -17,7 +17,7 @@ export default async function Home() {
       <p>
         This is a demo of a Next.js application hosted on Ubuntu Linux. It also includes a Postgres
         database and an Nginx proxy.{" "}
-        <a href="https://github.com/leerob/next-self-host">View the code</a>.
+        <a href="https://github.com/rioedwards/next-self-host">View the code</a>.
       </p>
 
       <h3>Data Fetching</h3>
@@ -46,9 +46,9 @@ export default async function Home() {
       <p>
         You can also bring your own custom image loader, if you would prefer to use a different
         service. You can view an example{" "}
-        <a href="https://github.com/leerob/next-self-host/blob/main/image-loader.ts">here</a>, which
-        you can enable through{" "}
-        <a href="https://github.com/leerob/next-self-host/blob/main/next.config.ts">
+        <a href="https://github.com/rioedwards/next-self-host/blob/main/image-loader.ts">here</a>,
+        which you can enable through{" "}
+        <a href="https://github.com/rioedwards/next-self-host/blob/main/next.config.ts">
           <code>next.config.ts</code>
         </a>
         .
